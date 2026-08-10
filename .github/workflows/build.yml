@@ -25,8 +25,8 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore FrostyEditor/FrostyEditor.sln
 
-      - name: Build FrostyEditor
-        run: msbuild FrostyEditor/FrostyEditor.sln /m /p:Configuration="Release - Final" /p:Platform=x64 /verbosity:minimal
+      - name: Build FrostyEditor project
+        run: msbuild FrostyEditor/FrostyEditor.csproj /m /p:Configuration="Release - Final" /p:Platform=x64 /verbosity:minimal
 
       - name: Upload FrostyEditor
         uses: actions/upload-artifact@v4
