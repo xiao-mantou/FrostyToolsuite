@@ -430,7 +430,7 @@ namespace Frosty.Core.IO
         {
             using (FrostyModWriter writer = new FrostyModWriter(output))
             {
-                writer.Write(FrostyMod.Magic); writer.Write(FrostyMod.Version);
+                writer.Write(FrostyMod.Magic); writer.Write(source.FormatVersion == 0 ? FrostyMod.Version : source.FormatVersion);
                 writer.Write(0xDEADBEEFDEADBEEF); writer.Write(0xDEADBEEF);
                 writer.Write(source.ProfileName); writer.Write(source.GameVersion);
                 writer.WriteNullTerminatedString(source.ModDetails.Title);
@@ -452,7 +452,11 @@ namespace Frosty.Core.IO
                 {
                     cancelToken.ThrowIfCancellationRequested();
                     byte[] data = source.GetResourceData(resource);
-                    int index = data == null ? -1 : writer.manifest.Add(resource.Sha1, data);
+                    int index = -1;
+                    if (data != null)
+                        index = resource.Type == ModResourceType.Embedded
+                            ? writer.manifest.Add(data)
+                            : writer.manifest.Add(resource.Sha1, data);
                     resource.WriteCopy(writer, index);
                 }
 
