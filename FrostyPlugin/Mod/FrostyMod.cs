@@ -29,6 +29,7 @@ namespace Frosty.Core.Mod
         public string Path { get; }
         public string Filename { get; }
         public int GameVersion { get; }
+        public string ProfileName { get; private set; }
 
         public IEnumerable<string> Warnings => warnings;
         public bool HasWarnings => warnings.Count != 0;
@@ -87,6 +88,7 @@ namespace Frosty.Core.Mod
                     NewFormat = true;
 
                     GameVersion = reader.GameVersion;
+                    ProfileName = reader.ProfileName;
                     ModDetails = reader.ReadModDetails();
 
                     resources = reader.ReadResources();

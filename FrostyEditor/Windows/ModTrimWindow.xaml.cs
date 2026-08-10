@@ -15,11 +15,16 @@ namespace FrostyEditor.Windows
         private FrostyMod source;
         private readonly ObservableCollection<Item> items = new ObservableCollection<Item>();
         public ModTrimWindow() { InitializeComponent(); resourceList.ItemsSource = items; }
+        public ModTrimWindow(string filename) : this() { LoadMod(filename); }
         private void OpenButton_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog { Filter = "Frosty Mod (*.fbmod)|*.fbmod" };
             if (dialog.ShowDialog() != true) return;
-            FrostyMod candidate = new FrostyMod(dialog.FileName);
+            LoadMod(dialog.FileName);
+        }
+        private void LoadMod(string filename)
+        {
+            FrostyMod candidate = new FrostyMod(filename);
             if (!candidate.NewFormat) { FrostyMessageBox.Show("Only standard Frosty binary Mods are supported.", "Trim Mod"); return; }
             source = candidate; items.Clear(); foreach (BaseModResource resource in source.Resources) items.Add(new Item(resource));
             sourceText.Text = source.Filename; statusText.Text = items.Count + " resources loaded";

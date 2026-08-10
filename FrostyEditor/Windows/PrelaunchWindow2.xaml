@@ -53,6 +53,7 @@
                 <Button x:Name="LaunchConfigButton" Content="Select" HorizontalAlignment="Right" Padding="12,0" Margin="0,6,6,6" Click="LaunchConfigButton_Click"/>
 
                 <Button Content="Scan for games" HorizontalAlignment="Left" Padding="12,0" Margin="6,6,0,6" Click="ScanForGamesButton_Click"/>
+                <Button Content="Open .fbmod" HorizontalAlignment="Left" Padding="12,0" Margin="110,6,0,6" Click="OpenModButton_Click"/>
             </Grid>
         </Grid>
     </Grid>

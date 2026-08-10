@@ -432,7 +432,7 @@ namespace Frosty.Core.IO
             {
                 writer.Write(FrostyMod.Magic); writer.Write(FrostyMod.Version);
                 writer.Write(0xDEADBEEFDEADBEEF); writer.Write(0xDEADBEEF);
-                writer.Write(ProfilesLibrary.ProfileName); writer.Write(App.FileSystem.Head);
+                writer.Write(source.ProfileName); writer.Write(source.GameVersion);
                 writer.WriteNullTerminatedString(source.ModDetails.Title);
                 writer.WriteNullTerminatedString(source.ModDetails.Author);
                 writer.WriteNullTerminatedString(source.ModDetails.Category);

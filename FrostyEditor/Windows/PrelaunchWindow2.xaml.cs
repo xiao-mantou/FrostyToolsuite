@@ -149,6 +149,18 @@ namespace FrostyEditor.Windows
             ConfigList.Items.Refresh();
         }
 
+        private void OpenModButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog dialog = new OpenFileDialog { Filter = "Frosty Mod (*.fbmod)|*.fbmod" };
+            if (dialog.ShowDialog() != true)
+                return;
+
+            ModTrimWindow window = new ModTrimWindow(dialog.FileName);
+            App.Current.MainWindow = window;
+            window.Show();
+            Close();
+        }
+
         private void IterateSubKeys(RegistryKey subKey, ref int totalCount)
         {
             foreach (string subKeyName in subKey.GetSubKeyNames())

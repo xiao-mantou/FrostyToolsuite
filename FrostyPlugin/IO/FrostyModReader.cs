@@ -9,6 +9,7 @@ namespace Frosty.Core.IO
     {
         public bool IsValid { get; } = false;
         public int GameVersion { get; }
+        public string ProfileName { get; }
         public uint Version { get; }
 
         private readonly long dataOffset;
@@ -29,8 +30,7 @@ namespace Frosty.Core.IO
             dataCount = ReadInt();
 
             string profileName = ReadSizedString(ReadByte());
-            if (profileName.ToLower() != ProfilesLibrary.ProfileName.ToLower())
-                return;
+            ProfileName = profileName;
 
             GameVersion = ReadInt();
             IsValid = true;
