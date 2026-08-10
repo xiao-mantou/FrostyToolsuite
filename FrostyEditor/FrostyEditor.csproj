@@ -149,6 +149,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Windows\ModTrimWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Windows\PatchSummaryWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -167,6 +171,9 @@
     </Compile>
     <Compile Include="Windows\ModSettingsWindow.xaml.cs">
       <DependentUpon>ModSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\ModTrimWindow.xaml.cs">
+      <DependentUpon>ModTrimWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Windows\PatchSummaryWindow.xaml.cs">
       <DependentUpon>PatchSummaryWindow.xaml</DependentUpon>

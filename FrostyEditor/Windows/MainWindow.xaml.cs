@@ -138,6 +138,10 @@ namespace FrostyEditor
             optionsMenuItem.Click += optionsMenuItem_Click;
             toolsMenuItem.Items.Add(optionsMenuItem);
 
+            MenuItem trimModMenuItem = new MenuItem { Header = "Trim existing Mod" };
+            trimModMenuItem.Click += (sender, args) => new ModTrimWindow().Show();
+            toolsMenuItem.Items.Add(trimModMenuItem);
+
             Bookmarks.BookmarkDb.ContextChanged += BookmarkDb_ContextChanged;
             BookmarkContextPicker.ItemsSource = Bookmarks.BookmarkDb.Contexts.Values;
             if (Bookmarks.BookmarkDb.CurrentContext != null)
