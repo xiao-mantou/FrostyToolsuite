@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows;
+using FrostySdk.Managers;
 
 namespace FrostyEditor.Windows
 {
@@ -17,8 +18,10 @@ namespace FrostyEditor.Windows
         private FrostyMod source;
         private readonly ObservableCollection<TreeNode> roots = new ObservableCollection<TreeNode>();
         private readonly List<BaseModResource> selected = new List<BaseModResource>();
+        private readonly Dictionary<string, TreeNode> resourceNodes = new Dictionary<string, TreeNode>(System.StringComparer.OrdinalIgnoreCase);
+        private readonly bool fastMode;
         public ModTrimWindow() { InitializeComponent(); resourceTree.ItemsSource = roots; }
-        public ModTrimWindow(string filename) : this() { LoadMod(filename); }
+        public ModTrimWindow(string filename) : this() { fastMode = true; LoadMod(filename); }
         private void OpenButton_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog { Filter = "Frosty Mod (*.fbmod)|*.fbmod" };
@@ -29,8 +32,10 @@ namespace FrostyEditor.Windows
         {
             FrostyMod candidate = new FrostyMod(filename, true);
             if (!candidate.NewFormat) { FrostyMessageBox.Show("Only standard Frosty binary Mods are supported.", "Trim Mod"); return; }
-            source = candidate; roots.Clear(); selected.Clear();
+            source = candidate; roots.Clear(); selected.Clear(); resourceNodes.Clear();
             foreach (BaseModResource resource in source.Resources) AddResource(resource);
+            if (!fastMode)
+                ApplyEbxDependencies();
             sourceText.Text = source.Filename; statusText.Text = source.Resources.Count() + " resources loaded";
         }
         private void SelectAll_Click(object sender, RoutedEventArgs e) { foreach (TreeNode node in roots) node.SetKeep(true); }
@@ -60,6 +65,32 @@ namespace FrostyEditor.Windows
             }
             current.Resources.Add(resource);
             current.Keep = IsRequired(resource);
+            resourceNodes[resource.Name ?? resource.Type + ":" + resourceNodes.Count] = current;
+        }
+
+        private void ApplyEbxDependencies()
+        {
+            if (App.AssetManager == null)
+                return;
+            Queue<EbxAssetEntry> queue = new Queue<EbxAssetEntry>();
+            HashSet<Guid> visited = new HashSet<Guid>();
+            foreach (BaseModResource resource in source.Resources.Where(item => item.Type == ModResourceType.Ebx))
+            {
+                EbxAssetEntry entry = App.AssetManager.GetEbxEntry(resource.Name);
+                if (entry != null) queue.Enqueue(entry);
+            }
+            while (queue.Count != 0)
+            {
+                EbxAssetEntry entry = queue.Dequeue();
+                if (!visited.Add(entry.Guid)) continue;
+                foreach (Guid dependency in entry.EnumerateDependencies())
+                {
+                    EbxAssetEntry dependencyEntry = App.AssetManager.GetEbxEntry(dependency);
+                    if (dependencyEntry == null) continue;
+                    if (resourceNodes.TryGetValue(dependencyEntry.Name, out TreeNode node)) node.SetKeep(true);
+                    queue.Enqueue(dependencyEntry);
+                }
+            }
         }
 
         private static bool IsRequired(BaseModResource resource)
