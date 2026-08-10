@@ -26,11 +26,13 @@ jobs:
         run: nuget restore FrostyEditor/FrostyEditor.sln
 
       - name: Build FrostyEditor
-        run: msbuild FrostyEditor/FrostyEditor.sln /m /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
+        run: msbuild FrostyEditor/FrostyEditor.sln /m /p:Configuration="Release - Final" /p:Platform=x64 /verbosity:minimal
 
       - name: Upload FrostyEditor
         uses: actions/upload-artifact@v4
         with:
           name: FrostyToolsuite-${{ github.ref_name }}-${{ github.run_number }}
-          path: FrostyEditor/bin/Release/**
+          path: |
+            FrostyEditor/bin/Release/Final/**
+            FrostyModManager/bin/Release/Final/**
           if-no-files-found: error
