@@ -28,14 +28,10 @@ jobs:
       - name: Build FrostyEditor project
         run: msbuild FrostyEditor/FrostyEditor.csproj /m /p:Configuration="Release - Final" /p:Platform=x64 /verbosity:minimal
 
-      - name: Build FrostyModManager project
-        run: msbuild FrostyModManager/FrostyModManager.csproj /m /p:Configuration="Release - Final" /p:Platform=x64 /verbosity:minimal
-
       - name: Upload FrostyEditor
         uses: actions/upload-artifact@v4
         with:
           name: FrostyToolsuite-${{ github.ref_name }}-${{ github.run_number }}
           path: |
             FrostyEditor/bin/Release/Final/**
-            FrostyModManager/bin/Release/Final/**
           if-no-files-found: error
