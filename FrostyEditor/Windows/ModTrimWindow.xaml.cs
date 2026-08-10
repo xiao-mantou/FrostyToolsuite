@@ -59,7 +59,12 @@ namespace FrostyEditor.Windows
                 children = current.Children;
             }
             current.Resources.Add(resource);
-            current.Keep = resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Chunk;
+            current.Keep = IsRequired(resource);
+        }
+
+        private static bool IsRequired(BaseModResource resource)
+        {
+            return resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Bundle || resource.Type == ModResourceType.Chunk;
         }
 
         public sealed class TreeNode : INotifyPropertyChanged
@@ -70,8 +75,8 @@ namespace FrostyEditor.Windows
             private bool keep;
             public bool Keep { get => keep; set { if (keep == value) return; keep = value; OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value); } }
             public TreeNode(string name) { DisplayName = name; }
-            public void SetKeep(bool value, bool preserveChunks = false) { keep = value || (preserveChunks && Resources.Any(resource => resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Chunk)); OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value, preserveChunks); }
-            public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => Keep || resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Chunk)); foreach (TreeNode child in Children) child.Collect(output); }
+            public void SetKeep(bool value, bool preserveRequired = false) { keep = value || (preserveRequired && Resources.Any(IsRequired)); OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); }
+            public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => Keep || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
             public event PropertyChangedEventHandler PropertyChanged;
             private void OnPropertyChanged(string name) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name)); }
         }
