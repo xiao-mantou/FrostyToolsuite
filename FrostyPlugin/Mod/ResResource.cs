@@ -51,5 +51,14 @@ namespace Frosty.Core.Mod
             resEntry.ResRid = resRid;
             resEntry.ResMeta = resMeta;
         }
+
+        internal override void WriteCopy(NativeWriter writer, int newResourceIndex)
+        {
+            base.WriteCopy(writer, newResourceIndex);
+            writer.Write(resType);
+            writer.Write(resRid);
+            writer.Write(resMeta?.Length ?? 0);
+            if (resMeta != null) writer.Write(resMeta);
+        }
     }
 }

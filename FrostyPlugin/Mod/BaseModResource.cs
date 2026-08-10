@@ -16,6 +16,7 @@ namespace Frosty.Core.Mod
         public long Size => size;
         public int Handler => handlerHash;
         public string UserData => userData;
+        public byte Flags => flags;
 
         public bool IsModified => resourceIndex != -1 && Type != ModResourceType.Embedded && Type != ModResourceType.Bundle;
 
@@ -112,6 +113,24 @@ namespace Frosty.Core.Mod
         public void AddBundle(BundleEntry bentry)
         {
             AddBundle(bentry.Name);
+        }
+
+        internal virtual void WriteCopy(NativeWriter writer, int newResourceIndex)
+        {
+            writer.Write((byte)Type);
+            writer.Write(newResourceIndex);
+            writer.WriteNullTerminatedString(name ?? "");
+            if (newResourceIndex != -1)
+            {
+                writer.Write(sha1);
+                writer.Write(size);
+                writer.Write(flags);
+                writer.Write(handlerHash);
+                writer.WriteNullTerminatedString(userData ?? "");
+            }
+            writer.Write(bundlesToAdd.Count);
+            foreach (int bundle in bundlesToAdd)
+                writer.Write(bundle);
         }
         internal void AddBundle(string name)
         {

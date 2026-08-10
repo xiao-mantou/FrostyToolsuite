@@ -53,5 +53,13 @@ namespace Frosty.Core.Mod
             if (chunkEntry.FirstMip == -1 && chunkEntry.RangeStart != 0)
                 chunkEntry.FirstMip = 0;
         }
+
+        internal override void WriteCopy(NativeWriter writer, int newResourceIndex)
+        {
+            base.WriteCopy(writer, newResourceIndex);
+            writer.Write(rangeStart); writer.Write(rangeEnd);
+            writer.Write(logicalOffset); writer.Write(logicalSize);
+            writer.Write(h32); writer.Write(firstMip);
+        }
     }
 }

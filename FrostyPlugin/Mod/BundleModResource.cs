@@ -25,5 +25,12 @@ namespace Frosty.Core.Mod
             bentry.Name = name;
             bentry.SuperBundleId = superBundleName;
         }
+
+        internal override void WriteCopy(NativeWriter writer, int newResourceIndex)
+        {
+            base.WriteCopy(writer, newResourceIndex);
+            writer.WriteNullTerminatedString(name ?? "");
+            writer.Write(superBundleName);
+        }
     }
 }

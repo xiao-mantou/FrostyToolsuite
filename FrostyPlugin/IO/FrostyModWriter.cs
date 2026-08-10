@@ -421,5 +421,47 @@ namespace Frosty.Core.IO
         {
             resources.Add(resource);
         }
+
+        /// <summary>
+        /// Repackages an existing standard fbmod without decoding or changing its asset bytes.
+        /// The selected resources are copied and their manifest indices are rebuilt.
+        /// </summary>
+        public static void WriteSelected(FrostyMod source, Stream output, IEnumerable<BaseModResource> selected, CancellationToken cancelToken)
+        {
+            using (FrostyModWriter writer = new FrostyModWriter(output))
+            {
+                writer.Write(FrostyMod.Magic); writer.Write(FrostyMod.Version);
+                writer.Write(0xDEADBEEFDEADBEEF); writer.Write(0xDEADBEEF);
+                writer.Write(ProfilesLibrary.ProfileName); writer.Write(App.FileSystem.Head);
+                writer.WriteNullTerminatedString(source.ModDetails.Title);
+                writer.WriteNullTerminatedString(source.ModDetails.Author);
+                writer.WriteNullTerminatedString(source.ModDetails.Category);
+                writer.WriteNullTerminatedString(source.ModDetails.Version);
+                writer.WriteNullTerminatedString(source.ModDetails.Description);
+                writer.WriteNullTerminatedString(source.ModDetails.Link);
+
+                List<BaseModResource> resources = new List<BaseModResource>();
+                foreach (BaseModResource resource in source.Resources)
+                {
+                    if (resource.Type == ModResourceType.Embedded || (selected != null && new HashSet<BaseModResource>(selected).Contains(resource)))
+                        resources.Add(resource);
+                }
+
+                writer.Write(resources.Count);
+                foreach (BaseModResource resource in resources)
+                {
+                    cancelToken.ThrowIfCancellationRequested();
+                    byte[] data = source.GetResourceData(resource);
+                    int index = data == null ? -1 : writer.manifest.Add(resource.Sha1, data);
+                    resource.WriteCopy(writer, index);
+                }
+
+                long manifestOffset = writer.Position;
+                writer.manifest.Write(writer);
+                writer.Position = 12;
+                writer.Write(manifestOffset);
+                writer.Write(writer.manifest.Count);
+            }
+        }
     }
 }
