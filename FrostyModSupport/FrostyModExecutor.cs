@@ -1047,19 +1047,9 @@ namespace Frosty.ModSupport
             cancelToken.ThrowIfCancellationRequested();
             Logger.Log("Loading Mods");
 
-            bool needsModding = false;
-            if (!File.Exists(Path.Combine(modDataPath, patchPath, "mods.json")))
-                needsModding = true;
-            else
-            {
-                List<ModInfo> oldModInfoList = JsonConvert.DeserializeObject<List<ModInfo>>(File.ReadAllText(Path.Combine(modDataPath, patchPath, "mods.json")));
-                List<ModInfo> currentModInfoList = GenerateModInfoList(modPaths, rootPath);
-
-                // check if the mod data needs recreating
-                // ie. mod change or patch
-                if (!IsSamePatch(modDataPath + patchPath) || !oldModInfoList.SequenceEqual(currentModInfoList))
-                    needsModding = true;
-            }
+            // Always rebuild ModData so replacing a Mod with the same filename and metadata
+            // cannot reuse stale generated data.
+            bool needsModding = true;
 
             cancelToken.ThrowIfCancellationRequested();
             if (needsModding)
