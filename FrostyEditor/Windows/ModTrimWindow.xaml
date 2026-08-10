@@ -1,9 +1,9 @@
 <ctrl:FrostyDockableWindow x:Class="FrostyEditor.Windows.ModTrimWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ctrl="clr-namespace:Frosty.Controls;assembly=FrostyControls" xmlns:local="clr-namespace:FrostyEditor.Windows" Title="Trim Frosty Mod" Width="760" Height="560">
   <Grid Margin="10"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <DockPanel Margin="0,0,0,8"><Button Content="Import .fbmod" Width="110" Click="OpenButton_Click"/><Button Content="Select all" Width="90" Margin="8,0,0,0" Click="SelectAll_Click"/><Button Content="Clear" Width="70" Margin="8,0,0,0" Click="Clear_Click"/><TextBlock x:Name="sourceText" Margin="12,4,0,0" Text="No Mod loaded"/></DockPanel>
-    <TreeView x:Name="resourceTree" Grid.Row="1" VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling">
+    <TreeView x:Name="resourceTree" Grid.Row="1" ItemTemplate="{DynamicResource TreeTemplate}" VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling">
       <TreeView.Resources>
-        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+        <HierarchicalDataTemplate x:Key="TreeTemplate" ItemsSource="{Binding Children}">
           <StackPanel Orientation="Horizontal"><CheckBox IsChecked="{Binding Keep, Mode=TwoWay}"/><TextBlock Text="{Binding DisplayName}" Margin="5,0,0,0"/></StackPanel>
         </HierarchicalDataTemplate>
       </TreeView.Resources>
