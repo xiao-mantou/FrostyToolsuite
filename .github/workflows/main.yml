@@ -1,0 +1,35 @@
+name: Build FrostyToolsuite
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 1.0.6.3
+      - 1.0.6.4
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore FrostyEditor/FrostyEditor.sln
+
+      - name: Build FrostyEditor
+        run: msbuild FrostyEditor/FrostyEditor.sln /m /p:Configuration=Release /p:Platform="Any CPU" /verbosity:minimal
+
+      - name: Upload FrostyEditor
+        uses: actions/upload-artifact@v4
+        with:
+          name: FrostyToolsuite-${{ github.ref_name }}-${{ github.run_number }}
+          path: FrostyEditor/bin/Release/**
+          if-no-files-found: error
