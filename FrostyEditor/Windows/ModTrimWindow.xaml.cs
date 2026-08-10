@@ -24,13 +24,13 @@ namespace FrostyEditor.Windows
         }
         private void LoadMod(string filename)
         {
-            FrostyMod candidate = new FrostyMod(filename);
+            FrostyMod candidate = new FrostyMod(filename, true);
             if (!candidate.NewFormat) { FrostyMessageBox.Show("Only standard Frosty binary Mods are supported.", "Trim Mod"); return; }
             source = candidate; items.Clear(); foreach (BaseModResource resource in source.Resources) items.Add(new Item(resource));
             sourceText.Text = source.Filename; statusText.Text = items.Count + " resources loaded";
         }
         private void SelectAll_Click(object sender, RoutedEventArgs e) { foreach (Item item in items) item.Keep = true; resourceList.Items.Refresh(); }
-        private void Clear_Click(object sender, RoutedEventArgs e) { foreach (Item item in items) item.Keep = item.Resource.Type == ModResourceType.Embedded; resourceList.Items.Refresh(); }
+        private void Clear_Click(object sender, RoutedEventArgs e) { foreach (Item item in items) item.Keep = item.Resource.Type == ModResourceType.Embedded || item.Resource.Type == ModResourceType.Chunk; resourceList.Items.Refresh(); }
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
             if (source == null) return;
@@ -45,7 +45,7 @@ namespace FrostyEditor.Windows
             public bool Keep { get; set; }
             public string Type => Resource.Type.ToString();
             public string Name => Resource.Name ?? "(embedded)";
-            public Item(BaseModResource resource) { Resource = resource; Keep = resource.Type == ModResourceType.Embedded; }
+            public Item(BaseModResource resource) { Resource = resource; Keep = resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Chunk; }
         }
     }
 }

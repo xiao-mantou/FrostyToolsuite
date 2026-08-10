@@ -15,7 +15,7 @@ namespace Frosty.Core.IO
         private readonly long dataOffset;
         private readonly int dataCount;
 
-        public FrostyModReader(Stream inStream)
+        public FrostyModReader(Stream inStream, bool allowProfileMismatch = false)
             : base(inStream)
         {
             ulong magic = ReadULong();
@@ -30,6 +30,8 @@ namespace Frosty.Core.IO
             dataCount = ReadInt();
 
             string profileName = ReadSizedString(ReadByte());
+            if (!allowProfileMismatch && profileName.ToLower() != ProfilesLibrary.ProfileName.ToLower())
+                return;
             ProfileName = profileName;
 
             GameVersion = ReadInt();

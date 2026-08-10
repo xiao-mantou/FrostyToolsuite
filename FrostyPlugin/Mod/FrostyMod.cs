@@ -76,12 +76,17 @@ namespace Frosty.Core.Mod
         /// Constructor for new binary format
         /// </summary>
         public FrostyMod(string inFilename)
+            : this(inFilename, false)
+        {
+        }
+
+        public FrostyMod(string inFilename, bool allowProfileMismatch)
         {
             FileInfo fi = new FileInfo(inFilename);
             Filename = fi.Name;
             Path = inFilename;
 
-            using (FrostyModReader reader = new FrostyModReader(new FileStream(inFilename, FileMode.Open, FileAccess.Read)))
+            using (FrostyModReader reader = new FrostyModReader(new FileStream(inFilename, FileMode.Open, FileAccess.Read), allowProfileMismatch))
             {
                 if (reader.IsValid)
                 {
@@ -106,7 +111,7 @@ namespace Frosty.Core.Mod
 
         public byte[] GetResourceData(BaseModResource resource)
         {
-            using (FrostyModReader reader = new FrostyModReader(new FileStream(Path, FileMode.Open, FileAccess.Read)))
+            using (FrostyModReader reader = new FrostyModReader(new FileStream(Path, FileMode.Open, FileAccess.Read), true))
                 return reader.GetResourceData(resource);
         }
 
