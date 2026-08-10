@@ -3,7 +3,7 @@
     <DockPanel Margin="0,0,0,8"><Button Content="Import .fbmod" Width="110" Click="OpenButton_Click"/><Button Content="Select all" Width="90" Margin="8,0,0,0" Click="SelectAll_Click"/><Button Content="Clear" Width="70" Margin="8,0,0,0" Click="Clear_Click"/><TextBlock x:Name="sourceText" Margin="12,4,0,0" Text="No Mod loaded"/></DockPanel>
     <TreeView x:Name="resourceTree" Grid.Row="1" VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling">
       <TreeView.Resources>
-        <HierarchicalDataTemplate DataType="{x:Type local:TreeNode}" ItemsSource="{Binding Children}">
+        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
           <StackPanel Orientation="Horizontal"><CheckBox IsChecked="{Binding Keep, Mode=TwoWay}"/><TextBlock Text="{Binding DisplayName}" Margin="5,0,0,0"/></StackPanel>
         </HierarchicalDataTemplate>
       </TreeView.Resources>
