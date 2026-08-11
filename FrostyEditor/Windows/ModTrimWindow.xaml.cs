@@ -39,6 +39,8 @@ namespace FrostyEditor.Windows
         }
         private void SelectAll_Click(object sender, RoutedEventArgs e) { foreach (TreeNode node in roots) node.SetKeep(true); }
         private void Clear_Click(object sender, RoutedEventArgs e) { foreach (TreeNode node in roots) node.SetKeep(false, true); }
+        private void SelectAllChunks_Click(object sender, RoutedEventArgs e) { foreach (TreeNode node in roots) node.SetChunks(true); }
+        private void ClearChunks_Click(object sender, RoutedEventArgs e) { foreach (TreeNode node in roots) node.SetChunks(false); }
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
             if (source == null) return;
@@ -65,12 +67,12 @@ namespace FrostyEditor.Windows
                 children = current.Children;
             }
             current.Resources.Add(resource);
-            current.Keep = IsRequired(resource);
+            current.Keep = IsRequired(resource) || resource.Type == ModResourceType.Chunk;
         }
 
         private static bool IsRequired(BaseModResource resource)
         {
-            return resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Bundle || resource.Type == ModResourceType.Chunk;
+            return resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Bundle;
         }
 
         private void AddEbxDependencies(List<BaseModResource> output)
@@ -128,6 +130,7 @@ namespace FrostyEditor.Windows
             public bool Keep { get => keep; set { if (keep == value) return; keep = value; OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value); } }
             public TreeNode(string name) { DisplayName = name; }
             public void SetKeep(bool value, bool preserveRequired = false) { keep = value || (preserveRequired && Resources.Any(IsRequired)); OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); }
+            public void SetChunks(bool value) { if (Resources.Any(resource => resource.Type == ModResourceType.Chunk)) { keep = value; OnPropertyChanged("Keep"); } foreach (TreeNode child in Children) child.SetChunks(value); }
             public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => Keep || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
             public event PropertyChangedEventHandler PropertyChanged;
             private void OnPropertyChanged(string name) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name)); }
