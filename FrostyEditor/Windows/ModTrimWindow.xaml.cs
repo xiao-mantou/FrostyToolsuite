@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using FrostySdk;
 using FrostySdk.Managers;
@@ -21,21 +22,59 @@ namespace FrostyEditor.Windows
         private readonly ObservableCollection<TreeNode> roots = new ObservableCollection<TreeNode>();
         private readonly List<BaseModResource> selected = new List<BaseModResource>();
         private readonly bool fastMode;
+        private CancellationTokenSource scanCancellation;
         public ModTrimWindow() { InitializeComponent(); resourceTree.ItemsSource = roots; }
-        public ModTrimWindow(string filename) : this() { fastMode = true; LoadMod(filename); }
+        public ModTrimWindow(string filename) : this() { fastMode = true; _ = LoadModAsync(filename); }
         private void OpenButton_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog { Filter = "Frosty Mod (*.fbmod)|*.fbmod" };
             if (dialog.ShowDialog() != true) return;
-            LoadMod(dialog.FileName);
+            _ = LoadModAsync(dialog.FileName);
         }
-        private void LoadMod(string filename)
+        private async Task LoadModAsync(string filename)
         {
+            scanCancellation?.Cancel();
+            scanCancellation = new CancellationTokenSource();
+            CancellationToken token = scanCancellation.Token;
             FrostyMod candidate = new FrostyMod(filename, true);
             if (!candidate.NewFormat) { FrostyMessageBox.Show("Only standard Frosty binary Mods are supported.", "Trim Mod"); return; }
             source = candidate; roots.Clear(); selected.Clear();
             foreach (BaseModResource resource in source.Resources) AddResource(resource);
             sourceText.Text = source.Filename; statusText.Text = source.Resources.Count() + " resources loaded";
+            if (!fastMode)
+            {
+                try { await AnalyzeDependenciesAsync(token); }
+                catch (OperationCanceledException) { statusText.Text = "Dependency scan cancelled"; }
+            }
+        }
+        private async Task AnalyzeDependenciesAsync(CancellationToken token)
+        {
+            BaseModResource[] resources = source.Resources.ToArray();
+            scanProgress.Visibility = Visibility.Visible; cancelScanButton.Visibility = Visibility.Visible;
+            scanProgress.Value = 0; statusText.Text = "Scanning dependencies...";
+            int done = 0;
+            foreach (BaseModResource resource in resources)
+            {
+                token.ThrowIfCancellationRequested();
+                if (resource.Type == ModResourceType.Ebx && App.AssetManager != null)
+                {
+                    EbxAssetEntry entry = App.AssetManager.GetEbxEntry(resource.Name);
+                    if (entry != null)
+                        _ = entry.EnumerateDependencies().Count();
+                }
+                done++;
+                scanProgress.Value = done * 100.0 / resources.Length;
+                statusText.Text = "Scanning dependencies " + done + "/" + resources.Length;
+                await Task.Delay(1);
+            }
+            scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
+            statusText.Text = "Dependency scan complete";
+        }
+        private void CancelScanButton_Click(object sender, RoutedEventArgs e)
+        {
+            scanCancellation?.Cancel();
+            scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
+            statusText.Text = "Dependency scan cancelled";
         }
         private void SelectAll_Click(object sender, RoutedEventArgs e) { foreach (TreeNode node in roots) node.SetKeep(true); }
         private void Clear_Click(object sender, RoutedEventArgs e) { foreach (TreeNode node in roots) node.SetKeep(false, true); }

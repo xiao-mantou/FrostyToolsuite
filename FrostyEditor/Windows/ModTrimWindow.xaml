@@ -8,6 +8,6 @@
         </HierarchicalDataTemplate>
       </TreeView.Resources>
     </TreeView>
-    <DockPanel Grid.Row="2" Margin="0,8,0,0"><TextBlock x:Name="statusText"/><Button Content="Save trimmed Mod" Width="140" HorizontalAlignment="Right" Click="SaveButton_Click"/></DockPanel>
+    <DockPanel Grid.Row="2" Margin="0,8,0,0"><ProgressBar x:Name="scanProgress" Width="180" Height="16" Minimum="0" Maximum="100" Visibility="Collapsed"/><TextBlock x:Name="statusText" Margin="8,0,0,0"/><Button x:Name="cancelScanButton" Content="Cancel scan" Width="90" HorizontalAlignment="Right" Visibility="Collapsed" Click="CancelScanButton_Click"/><Button Content="Save trimmed Mod" Width="140" HorizontalAlignment="Right" Click="SaveButton_Click"/></DockPanel>
   </Grid>
 </ctrl:FrostyDockableWindow>
