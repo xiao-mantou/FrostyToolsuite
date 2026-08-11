@@ -48,6 +48,15 @@ namespace FrostyEditor.Windows
             if (dialog.ShowDialog() != true) return;
             selected.Clear(); foreach (TreeNode root in roots) root.Collect(selected);
             if (!fastMode)
+            {
+                selected.RemoveAll(resource => resource.Type == ModResourceType.Res);
+            }
+            else
+            {
+                foreach (BaseModResource resource in source.Resources.Where(resource => resource.Type == ModResourceType.Res && !selected.Contains(resource)))
+                    selected.Add(resource);
+            }
+            if (!fastMode)
                 AddEbxDependencies(selected);
             using (FileStream stream = new FileStream(dialog.FileName, FileMode.Create, FileAccess.Write)) FrostyModWriter.WriteSelected(source, stream, selected, CancellationToken.None);
             statusText.Text = "Saved: " + dialog.FileName;
@@ -124,6 +133,7 @@ namespace FrostyEditor.Windows
         public sealed class TreeNode : INotifyPropertyChanged
         {
             public string DisplayName { get; }
+            public string TypeLabel => Resources.Count == 0 ? "" : "[" + Resources[0].Type.ToString().ToUpperInvariant() + "]";
             public ObservableCollection<TreeNode> Children { get; } = new ObservableCollection<TreeNode>();
             internal List<BaseModResource> Resources { get; } = new List<BaseModResource>();
             private bool keep;
