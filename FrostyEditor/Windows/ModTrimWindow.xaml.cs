@@ -50,17 +50,27 @@ namespace FrostyEditor.Windows
         private async Task AnalyzeDependenciesAsync(CancellationToken token)
         {
             BaseModResource[] resources = source.Resources.ToArray();
+            Dictionary<Guid, TreeNode> modChunks = resources
+                .Where(resource => resource.Type == ModResourceType.Chunk && Guid.TryParse(resource.Name, out _))
+                .ToDictionary(resource => Guid.Parse(resource.Name), FindNode);
+            int matched = 0;
             scanProgress.Visibility = Visibility.Visible; cancelScanButton.Visibility = Visibility.Visible;
             scanProgress.Value = 0; statusText.Text = "Scanning dependencies...";
             int done = 0;
             foreach (BaseModResource resource in resources)
             {
                 token.ThrowIfCancellationRequested();
-                if (resource.Type == ModResourceType.Ebx && App.AssetManager != null)
+                if (resource.Type == ModResourceType.Ebx || resource.Type == ModResourceType.Res)
                 {
-                    EbxAssetEntry entry = App.AssetManager.GetEbxEntry(resource.Name);
-                    if (entry != null)
-                        _ = entry.EnumerateDependencies().Count();
+                    byte[] data = source.GetResourceData(resource);
+                    HashSet<Guid> found = FindChunkGuids(data, modChunks.Keys);
+                    if (found.Count == 0 && !fastMode && App.AssetManager != null)
+                        found = FindGameChunkGuids(resource, modChunks.Keys);
+                    foreach (Guid id in found)
+                    {
+                        modChunks[id].SetMatch(true);
+                        matched++;
+                    }
                 }
                 done++;
                 scanProgress.Value = done * 100.0 / resources.Length;
@@ -68,7 +78,36 @@ namespace FrostyEditor.Windows
                 await Task.Delay(1);
             }
             scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
-            statusText.Text = "Dependency scan complete";
+            statusText.Text = "Dependency scan complete. Bound CHK: " + matched;
+        }
+
+        private HashSet<Guid> FindGameChunkGuids(BaseModResource resource, IEnumerable<Guid> chunkIds)
+        {
+            AssetEntry entry = resource.Type == ModResourceType.Ebx
+                ? App.AssetManager.GetEbxEntry(resource.Name)
+                : App.AssetManager.GetResEntry(resource.Name);
+            if (entry == null) return new HashSet<Guid>();
+            byte[] data = null;
+            using (Stream stream = resource.Type == ModResourceType.Ebx
+                ? App.AssetManager.GetEbxStream((EbxAssetEntry)entry)
+                : App.AssetManager.GetRes((ResAssetEntry)entry))
+            using (MemoryStream memory = new MemoryStream())
+            {
+                stream.CopyTo(memory); data = memory.ToArray();
+            }
+            return FindChunkGuids(data, chunkIds);
+        }
+
+        private static HashSet<Guid> FindChunkGuids(byte[] data, IEnumerable<Guid> chunkIds)
+        {
+            HashSet<Guid> result = new HashSet<Guid>();
+            if (data == null) return result;
+            byte[][] byteForms = chunkIds.SelectMany(id => new[] { id.ToByteArray(), id.ToByteArray().Reverse().ToArray() }).ToArray();
+            Guid[] ids = chunkIds.ToArray();
+            for (int i = 0; i <= data.Length - 16; i++)
+                for (int j = 0; j < byteForms.Length; j++)
+                    if (data.Skip(i).Take(16).SequenceEqual(byteForms[j])) { result.Add(ids[j / 2]); break; }
+            return result;
         }
         private void CancelScanButton_Click(object sender, RoutedEventArgs e)
         {

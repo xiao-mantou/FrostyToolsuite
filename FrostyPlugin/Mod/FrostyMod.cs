@@ -117,6 +117,11 @@ namespace Frosty.Core.Mod
                 return reader.GetResourceData(resource);
         }
 
+        public byte[] ReadResourceData(BaseModResource resource)
+        {
+            return GetResourceData(resource);
+        }
+
         public void AddWarning(string warning)
         {
             warnings.Add(warning);
