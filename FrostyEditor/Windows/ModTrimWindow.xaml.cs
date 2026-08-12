@@ -44,6 +44,7 @@ namespace FrostyEditor.Windows
             if (!candidate.NewFormat) { FrostyMessageBox.Show("Only standard Frosty binary Mods are supported.", "Trim Mod"); return; }
             source = candidate; roots.Clear(); selected.Clear(); resourceChunkBindings.Clear();
             foreach (BaseModResource resource in source.Resources) AddResource(resource);
+            foreach (TreeNode root in roots) root.RecalculateState();
             sourceText.Text = source.Filename; statusText.Text = source.Resources.Count() + " resources loaded";
             try { await AnalyzeDependenciesAsync(token); }
             catch (OperationCanceledException) { statusText.Text = "Dependency scan cancelled"; }
@@ -126,6 +127,14 @@ namespace FrostyEditor.Windows
                 statusText.Text = "Scanning dependencies " + done + "/" + resources.Length;
                 await Task.Delay(1);
             }
+            // Chunks without a discovered owner stay selected. Chunks with an
+            // EBX/RES owner are selected only when that resource is selected.
+            foreach (HashSet<Guid> chunkIds in resourceChunkBindings.Values)
+            {
+                foreach (Guid chunkId in chunkIds)
+                    modChunks[chunkId].SetKeep(false);
+            }
+            foreach (TreeNode root in roots) root.RecalculateState();
             scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
             int unmatched = chunkTotal - modChunks.Values.Count(node => node.IsMatched);
             Dictionary<Guid, int> chunkReferenceCounts = new Dictionary<Guid, int>();
@@ -290,7 +299,7 @@ namespace FrostyEditor.Windows
                 children = current.Children;
             }
             current.Resources.Add(resource);
-            current.Keep = true;
+            current.SetKeep(resource.Type == ModResourceType.Chunk);
         }
 
         private static bool IsRequired(BaseModResource resource)
@@ -302,6 +311,8 @@ namespace FrostyEditor.Windows
             CheckBox checkBox = sender as CheckBox;
             TreeNode node = checkBox?.DataContext as TreeNode;
             if (node == null || source == null || checkBox.IsChecked == null) return;
+            if (checkBox.IsChecked != null)
+                node.SetKeep(checkBox.IsChecked == true);
 
             foreach (BaseModResource resource in node.GetResources())
             {
@@ -314,6 +325,7 @@ namespace FrostyEditor.Windows
                     chunkNode?.SetKeep(checkBox.IsChecked == true);
                 }
             }
+            foreach (TreeNode root in roots) root.RecalculateState();
         }
 
         private TreeNode FindNode(BaseModResource resource)
@@ -381,10 +393,19 @@ namespace FrostyEditor.Windows
             public ObservableCollection<TreeNode> Children { get; } = new ObservableCollection<TreeNode>();
             internal List<BaseModResource> Resources { get; } = new List<BaseModResource>();
             private bool keep;
-            public bool Keep { get => keep; set { if (keep == value) return; keep = value; OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value); } }
+            public bool? Keep { get => keep; set { if (keep == value) return; keep = value; OnPropertyChanged("Keep"); } }
             public TreeNode(string name) { DisplayName = name; }
-            public void SetKeep(bool value, bool preserveRequired = false) { keep = value || (preserveRequired && Resources.Any(IsRequired)); OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); }
-            public void SetChunks(bool value) { if (Resources.Any(resource => resource.Type == ModResourceType.Chunk)) { keep = value; OnPropertyChanged("Keep"); } foreach (TreeNode child in Children) child.SetChunks(value); }
+            public void SetKeep(bool value, bool preserveRequired = false) { Keep = value || (preserveRequired && Resources.Any(IsRequired)); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); RecalculateState(); }
+            public void SetChunks(bool value) { if (Resources.Any(resource => resource.Type == ModResourceType.Chunk)) Keep = value; foreach (TreeNode child in Children) child.SetChunks(value); RecalculateState(); }
+            public void RecalculateState()
+            {
+                foreach (TreeNode child in Children) child.RecalculateState();
+                List<bool> states = new List<bool>();
+                states.AddRange(Resources.Select(resource => keep == true));
+                states.AddRange(Children.Where(child => child.Keep.HasValue).Select(child => child.Keep.Value));
+                if (states.Count == 0) { Keep = false; return; }
+                Keep = states.All(state => state) ? true : states.All(state => !state) ? false : (bool?)null;
+            }
             public IEnumerable<BaseModResource> GetResources()
             {
                 foreach (BaseModResource resource in Resources)
@@ -395,7 +416,7 @@ namespace FrostyEditor.Windows
             }
             public void SetMatch(bool found) { IsMatched = found; MatchBrush = found ? Brushes.ForestGreen : Brushes.Firebrick; OnPropertyChanged("MatchBrush"); }
             public TreeNode Find(BaseModResource resource) { if (Resources.Contains(resource)) return this; foreach (TreeNode child in Children) { TreeNode found = child.Find(resource); if (found != null) return found; } return null; }
-            public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => Keep || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
+            public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => keep == true || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
             public event PropertyChangedEventHandler PropertyChanged;
             private void OnPropertyChanged(string name) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name)); }
         }
