@@ -275,9 +275,9 @@ namespace FrostyEditor.Windows
         {
             CheckBox checkBox = sender as CheckBox;
             TreeNode node = checkBox?.DataContext as TreeNode;
-            if (node == null || checkBox.IsChecked != false) return;
+            if (node == null || source == null || checkBox.IsChecked == null) return;
 
-            foreach (BaseModResource resource in node.Resources)
+            foreach (BaseModResource resource in node.GetResources())
             {
                 if (!resourceChunkBindings.TryGetValue(resource, out HashSet<Guid> chunkIds))
                     continue;
@@ -285,7 +285,7 @@ namespace FrostyEditor.Windows
                 {
                     TreeNode chunkNode = FindNode(source.Resources.FirstOrDefault(candidate =>
                         candidate.Type == ModResourceType.Chunk && Guid.TryParse(candidate.Name, out Guid id) && id == chunkId));
-                    chunkNode?.SetKeep(false);
+                    chunkNode?.SetKeep(checkBox.IsChecked == true);
                 }
             }
         }
@@ -359,6 +359,14 @@ namespace FrostyEditor.Windows
             public TreeNode(string name) { DisplayName = name; }
             public void SetKeep(bool value, bool preserveRequired = false) { keep = value || (preserveRequired && Resources.Any(IsRequired)); OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); }
             public void SetChunks(bool value) { if (Resources.Any(resource => resource.Type == ModResourceType.Chunk)) { keep = value; OnPropertyChanged("Keep"); } foreach (TreeNode child in Children) child.SetChunks(value); }
+            public IEnumerable<BaseModResource> GetResources()
+            {
+                foreach (BaseModResource resource in Resources)
+                    yield return resource;
+                foreach (TreeNode child in Children)
+                    foreach (BaseModResource resource in child.GetResources())
+                        yield return resource;
+            }
             public void SetMatch(bool found) { IsMatched = found; MatchBrush = found ? Brushes.ForestGreen : Brushes.Firebrick; OnPropertyChanged("MatchBrush"); }
             public TreeNode Find(BaseModResource resource) { if (Resources.Contains(resource)) return this; foreach (TreeNode child in Children) { TreeNode found = child.Find(resource); if (found != null) return found; } return null; }
             public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => Keep || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
