@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 using FrostySdk;
 using FrostySdk.Managers;
 
@@ -83,17 +84,21 @@ namespace FrostyEditor.Windows
 
         private HashSet<Guid> FindGameChunkGuids(BaseModResource resource, IEnumerable<Guid> chunkIds)
         {
-            AssetEntry entry = resource.Type == ModResourceType.Ebx
-                ? App.AssetManager.GetEbxEntry(resource.Name)
-                : App.AssetManager.GetResEntry(resource.Name);
+            AssetEntry entry;
+            if (resource.Type == ModResourceType.Ebx)
+                entry = App.AssetManager.GetEbxEntry(resource.Name);
+            else
+                entry = App.AssetManager.GetResEntry(resource.Name);
             if (entry == null) return new HashSet<Guid>();
             byte[] data = null;
-            using (Stream stream = resource.Type == ModResourceType.Ebx
-                ? App.AssetManager.GetEbxStream((EbxAssetEntry)entry)
-                : App.AssetManager.GetRes((ResAssetEntry)entry))
             using (MemoryStream memory = new MemoryStream())
             {
-                stream.CopyTo(memory); data = memory.ToArray();
+                Stream stream = resource.Type == ModResourceType.Ebx
+                    ? App.AssetManager.GetEbxStream((EbxAssetEntry)entry)
+                    : App.AssetManager.GetRes((ResAssetEntry)entry);
+                using (stream)
+                    stream.CopyTo(memory);
+                data = memory.ToArray();
             }
             return FindChunkGuids(data, chunkIds);
         }
@@ -157,6 +162,16 @@ namespace FrostyEditor.Windows
             return resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Bundle;
         }
 
+        private TreeNode FindNode(BaseModResource resource)
+        {
+            foreach (TreeNode root in roots)
+            {
+                TreeNode found = root.Find(resource);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
         private void AddEbxDependencies(List<BaseModResource> output)
         {
             if (App.AssetManager == null)
@@ -207,6 +222,7 @@ namespace FrostyEditor.Windows
         {
             public string DisplayName { get; }
             public string TypeLabel => Resources.Count == 0 ? "" : "[" + Resources[0].Type.ToString().ToUpperInvariant() + "]";
+            public Brush MatchBrush { get; private set; } = Brushes.Black;
             public ObservableCollection<TreeNode> Children { get; } = new ObservableCollection<TreeNode>();
             internal List<BaseModResource> Resources { get; } = new List<BaseModResource>();
             private bool keep;
@@ -214,6 +230,8 @@ namespace FrostyEditor.Windows
             public TreeNode(string name) { DisplayName = name; }
             public void SetKeep(bool value, bool preserveRequired = false) { keep = value || (preserveRequired && Resources.Any(IsRequired)); OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); }
             public void SetChunks(bool value) { if (Resources.Any(resource => resource.Type == ModResourceType.Chunk)) { keep = value; OnPropertyChanged("Keep"); } foreach (TreeNode child in Children) child.SetChunks(value); }
+            public void SetMatch(bool found) { MatchBrush = found ? Brushes.ForestGreen : Brushes.Firebrick; OnPropertyChanged("MatchBrush"); }
+            public TreeNode Find(BaseModResource resource) { if (Resources.Contains(resource)) return this; foreach (TreeNode child in Children) { TreeNode found = child.Find(resource); if (found != null) return found; } return null; }
             public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => Keep || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
             public event PropertyChangedEventHandler PropertyChanged;
             private void OnPropertyChanged(string name) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name)); }
