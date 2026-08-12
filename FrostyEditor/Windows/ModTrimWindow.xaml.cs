@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using FrostySdk;
+using FrostySdk.IO;
 using FrostySdk.Managers;
 
 namespace FrostyEditor.Windows
