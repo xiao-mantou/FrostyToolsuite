@@ -45,11 +45,8 @@ namespace FrostyEditor.Windows
             source = candidate; roots.Clear(); selected.Clear(); resourceChunkBindings.Clear();
             foreach (BaseModResource resource in source.Resources) AddResource(resource);
             sourceText.Text = source.Filename; statusText.Text = source.Resources.Count() + " resources loaded";
-            if (!fastMode)
-            {
-                try { await AnalyzeDependenciesAsync(token); }
-                catch (OperationCanceledException) { statusText.Text = "Dependency scan cancelled"; }
-            }
+            try { await AnalyzeDependenciesAsync(token); }
+            catch (OperationCanceledException) { statusText.Text = "Dependency scan cancelled"; }
         }
         private async Task AnalyzeDependenciesAsync(CancellationToken token)
         {
@@ -57,11 +54,19 @@ namespace FrostyEditor.Windows
             Dictionary<Guid, TreeNode> modChunks = resources
                 .Where(resource => resource.Type == ModResourceType.Chunk && Guid.TryParse(resource.Name, out _))
                 .ToDictionary(resource => Guid.Parse(resource.Name), FindNode);
+            HashSet<Guid> guidProbeIds = new HashSet<Guid>(modChunks.Keys);
+            if (!fastMode && App.AssetManager != null)
+                guidProbeIds.UnionWith(App.AssetManager.EnumerateChunks().Select(entry => entry.Id));
             int matched = 0;
             int chunkTotal = modChunks.Count;
             int dataRead = 0;
             int dataMissing = 0;
             int decompressed = 0;
+            int modDataWithChunkGuid = 0;
+            int modDataWithoutChunkGuid = 0;
+            int gameFallbackAttempted = 0;
+            int gameFallbackResourceMissing = 0;
+            int gameFallbackWithModChunk = 0;
             Dictionary<string, int> noMatchByType = new Dictionary<string, int>();
             Dictionary<string, List<string>> noMatchExamples = new Dictionary<string, List<string>>();
             scanProgress.Visibility = Visibility.Visible; cancelScanButton.Visibility = Visibility.Visible;
@@ -86,16 +91,26 @@ namespace FrostyEditor.Windows
                     bool expanded;
                     byte[] data = ExpandModData(rawData, out expanded);
                     if (expanded) decompressed++;
-                    HashSet<Guid> found = await Task.Run(() => FindChunkGuids(data, modChunks.Keys), token);
+                    HashSet<Guid> extracted = await Task.Run(() => FindChunkGuids(data, guidProbeIds), token);
+                    HashSet<Guid> found = new HashSet<Guid>(extracted.Where(modChunks.ContainsKey));
                     bool usedGameData = false;
-                    // Only non-fast mode may use the original game resource as a
-                    // fallback, and only when the Mod data produced no usable
-                    // Chunk reference. Fast mode is strictly Mod-only.
-                    if (found.Count == 0 && !fastMode && App.AssetManager != null)
+                    if (extracted.Count != 0)
                     {
-                        HashSet<Guid> gameFound = await Task.Run(() => FindGameChunkGuids(resource, modChunks.Keys), token);
-                        usedGameData = true;
-                        found = gameFound;
+                        modDataWithChunkGuid++;
+                    }
+                    else
+                    {
+                        modDataWithoutChunkGuid++;
+                        if (!fastMode && App.AssetManager != null)
+                        {
+                            gameFallbackAttempted++;
+                            bool gameResourceFound;
+                            HashSet<Guid> gameExtracted = await Task.Run(() => FindGameChunkGuids(resource, guidProbeIds, out gameResourceFound), token);
+                            if (!gameResourceFound) gameFallbackResourceMissing++;
+                            found = new HashSet<Guid>(gameExtracted.Where(modChunks.ContainsKey));
+                            usedGameData = true;
+                            if (found.Count != 0) gameFallbackWithModChunk++;
+                        }
                     }
                     if (found.Count == 0)
                         AddScanIssue(noMatchByType, noMatchExamples, usedGameData ? "game data has no matching mod CHK" : "mod data has no matching mod CHK", resource.Name);
@@ -133,9 +148,15 @@ namespace FrostyEditor.Windows
                 .Select(resource => resource.Name));
             statusText.Text = "Dependency scan complete. Bound CHK: " + matched;
             string summary = "Dependency scan complete\n"
+                + "Mode: " + (fastMode ? "fast (Mod data only)" : "full (game fallback enabled)") + "\n"
                 + "EBX/RES: " + (dataRead + dataMissing) + "\n"
                 + "Data read: " + dataRead + "\n"
                 + "Decompressed: " + decompressed + "\n"
+                + "Mod data with CHK GUID: " + modDataWithChunkGuid + "\n"
+                + "Mod data without CHK GUID: " + modDataWithoutChunkGuid + "\n"
+                + "Game fallback attempted: " + gameFallbackAttempted + "\n"
+                + "Game fallback resource missing: " + gameFallbackResourceMissing + "\n"
+                + "Game fallback matched this Mod's CHK: " + gameFallbackWithModChunk + "\n"
                 + "CHK total: " + chunkTotal + "\n"
                 + "Bound CHK: " + matched + "\n"
                 + "Unmatched CHK: " + unmatched + "\n"
@@ -164,14 +185,16 @@ namespace FrostyEditor.Windows
             if (examples[reason].Count < 5 && !string.IsNullOrEmpty(name)) examples[reason].Add(name);
         }
 
-        private HashSet<Guid> FindGameChunkGuids(BaseModResource resource, IEnumerable<Guid> chunkIds)
+        private HashSet<Guid> FindGameChunkGuids(BaseModResource resource, IEnumerable<Guid> chunkIds, out bool resourceFound)
         {
+            resourceFound = false;
             AssetEntry entry;
             if (resource.Type == ModResourceType.Ebx)
                 entry = App.AssetManager.GetEbxEntry(resource.Name);
             else
                 entry = App.AssetManager.GetResEntry(resource.Name);
             if (entry == null) return new HashSet<Guid>();
+            resourceFound = true;
             byte[] data = null;
             using (MemoryStream memory = new MemoryStream())
             {
