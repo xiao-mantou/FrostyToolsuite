@@ -275,10 +275,6 @@ namespace FrostyEditor.Windows
             SaveFileDialog dialog = new SaveFileDialog { Filter = "Frosty Mod (*.fbmod)|*.fbmod", FileName = Path.GetFileNameWithoutExtension(source.Filename) + "_trimmed.fbmod" };
             if (dialog.ShowDialog() != true) return;
             selected.Clear(); foreach (TreeNode root in roots) root.Collect(selected);
-            // Keep RES while dependency mapping is being validated. Removing an RES
-            // without a verified EBX -> RES mapping can produce a loadable but broken Mod.
-            foreach (BaseModResource resource in source.Resources.Where(resource => resource.Type == ModResourceType.Res && !selected.Contains(resource)))
-                selected.Add(resource);
             if (!fastMode)
                 AddEbxDependencies(selected);
             using (FileStream stream = new FileStream(dialog.FileName, FileMode.Create, FileAccess.Write)) FrostyModWriter.WriteSelected(source, stream, selected, CancellationToken.None);
@@ -299,7 +295,7 @@ namespace FrostyEditor.Windows
                 children = current.Children;
             }
             current.Resources.Add(resource);
-            current.SetKeep(resource.Type == ModResourceType.Chunk);
+            current.SetKeep(resource.Type == ModResourceType.Chunk || IsRequired(resource));
         }
 
         private static bool IsRequired(BaseModResource resource)
