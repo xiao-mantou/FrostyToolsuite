@@ -51,7 +51,6 @@ namespace FrostyEditor.Windows
         private async Task AnalyzeDependenciesAsync(CancellationToken token)
         {
             BaseModResource[] resources = source.Resources.ToArray();
-            HashSet<Guid> boundChunks = new HashSet<Guid>();
             scanProgress.Visibility = Visibility.Visible; cancelScanButton.Visibility = Visibility.Visible;
             scanProgress.Value = 0; statusText.Text = "Scanning dependencies...";
             int done = 0;
@@ -59,46 +58,27 @@ namespace FrostyEditor.Windows
             {
                 token.ThrowIfCancellationRequested();
                 TreeNode node = FindNode(resource);
-                if (resource.Type == ModResourceType.Ebx && App.AssetManager != null)
+                if (resource.Type == ModResourceType.Chunk && node != null)
+                {
+                    Guid chunkId;
+                    if (Guid.TryParse(resource.Name, out chunkId) && App.AssetManager != null)
+                        node.SetMatch(App.AssetManager.GetChunkEntry(chunkId) != null);
+                    else
+                        node.SetMatch(false);
+                }
+                else if (resource.Type == ModResourceType.Ebx && App.AssetManager != null)
                 {
                     EbxAssetEntry entry = App.AssetManager.GetEbxEntry(resource.Name);
                     if (entry != null)
-                    {
-                        MarkLinkedChunks(entry, boundChunks);
                         _ = entry.EnumerateDependencies().Count();
-                    }
-                }
-                else if (resource.Type == ModResourceType.Res && App.AssetManager != null)
-                {
-                    ResAssetEntry entry = App.AssetManager.GetResEntry(resource.Name);
-                    if (entry != null)
-                        MarkLinkedChunks(entry, boundChunks);
                 }
                 done++;
                 scanProgress.Value = done * 100.0 / resources.Length;
                 statusText.Text = "Scanning dependencies " + done + "/" + resources.Length;
                 await Task.Delay(1);
             }
-            foreach (BaseModResource resource in resources.Where(item => item.Type == ModResourceType.Chunk))
-            {
-                token.ThrowIfCancellationRequested();
-                Guid chunkId;
-                TreeNode node = FindNode(resource);
-                if (node != null && Guid.TryParse(resource.Name, out chunkId))
-                    node.SetMatch(boundChunks.Contains(chunkId));
-            }
             scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
             statusText.Text = "Dependency scan complete";
-        }
-
-        private static void MarkLinkedChunks(AssetEntry entry, HashSet<Guid> boundChunks)
-        {
-            foreach (AssetEntry linked in entry.LinkedAssets)
-            {
-                ChunkAssetEntry chunk = linked as ChunkAssetEntry;
-                if (chunk != null)
-                    boundChunks.Add(chunk.Id);
-            }
         }
 
         private TreeNode FindNode(BaseModResource resource)
