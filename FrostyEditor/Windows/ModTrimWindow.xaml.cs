@@ -107,6 +107,11 @@ namespace FrostyEditor.Windows
             }
             scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
             int unmatched = chunkTotal - modChunks.Values.Count(node => node.IsMatched);
+            string unmatchedChunks = string.Join(", ", resources
+                .Where(resource => resource.Type == ModResourceType.Chunk
+                    && Guid.TryParse(resource.Name, out Guid id)
+                    && !modChunks[id].IsMatched)
+                .Select(resource => resource.Name));
             statusText.Text = "Dependency scan complete. Bound CHK: " + matched;
             string summary = "Dependency scan complete\n"
                 + "EBX/RES: " + (dataRead + dataMissing) + "\n"
@@ -115,6 +120,8 @@ namespace FrostyEditor.Windows
                 + "CHK total: " + chunkTotal + "\n"
                 + "Bound CHK: " + matched + "\n"
                 + "Unmatched CHK: " + unmatched;
+            if (unmatched != 0)
+                summary += "\nUnmatched CHK GUID: " + unmatchedChunks;
             foreach (KeyValuePair<string, int> issue in noMatchByType)
             {
                 summary += "\n\n" + issue.Key + ": " + issue.Value;
