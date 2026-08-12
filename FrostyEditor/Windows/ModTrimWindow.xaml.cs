@@ -392,7 +392,7 @@ namespace FrostyEditor.Windows
             public bool IsMatched { get; private set; }
             public ObservableCollection<TreeNode> Children { get; } = new ObservableCollection<TreeNode>();
             internal List<BaseModResource> Resources { get; } = new List<BaseModResource>();
-            private bool keep;
+            private bool? keep;
             public bool? Keep { get => keep; set { if (keep == value) return; keep = value; OnPropertyChanged("Keep"); } }
             public TreeNode(string name) { DisplayName = name; }
             public void SetKeep(bool value, bool preserveRequired = false) { Keep = value || (preserveRequired && Resources.Any(IsRequired)); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); RecalculateState(); }
