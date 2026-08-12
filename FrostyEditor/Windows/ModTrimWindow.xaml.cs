@@ -104,7 +104,7 @@ namespace FrostyEditor.Windows
                         if (!fastMode && App.AssetManager != null)
                         {
                             gameFallbackAttempted++;
-                            bool gameResourceFound;
+                            bool gameResourceFound = false;
                             HashSet<Guid> gameExtracted = await Task.Run(() => FindGameChunkGuids(resource, guidProbeIds, out gameResourceFound), token);
                             if (!gameResourceFound) gameFallbackResourceMissing++;
                             found = new HashSet<Guid>(gameExtracted.Where(modChunks.ContainsKey));
