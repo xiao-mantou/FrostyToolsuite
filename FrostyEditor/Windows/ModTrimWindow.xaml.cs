@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 using FrostySdk;
 using FrostySdk.Managers;
 
@@ -56,7 +57,16 @@ namespace FrostyEditor.Windows
             foreach (BaseModResource resource in resources)
             {
                 token.ThrowIfCancellationRequested();
-                if (resource.Type == ModResourceType.Ebx && App.AssetManager != null)
+                TreeNode node = FindNode(resource);
+                if (resource.Type == ModResourceType.Chunk && node != null)
+                {
+                    Guid chunkId;
+                    if (Guid.TryParse(resource.Name, out chunkId) && App.AssetManager != null)
+                        node.SetMatch(App.AssetManager.GetChunkEntry(chunkId) != null);
+                    else
+                        node.SetMatch(false);
+                }
+                else if (resource.Type == ModResourceType.Ebx && App.AssetManager != null)
                 {
                     EbxAssetEntry entry = App.AssetManager.GetEbxEntry(resource.Name);
                     if (entry != null)
@@ -69,6 +79,16 @@ namespace FrostyEditor.Windows
             }
             scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
             statusText.Text = "Dependency scan complete";
+        }
+
+        private TreeNode FindNode(BaseModResource resource)
+        {
+            foreach (TreeNode root in roots)
+            {
+                TreeNode found = root.Find(resource);
+                if (found != null) return found;
+            }
+            return null;
         }
         private void CancelScanButton_Click(object sender, RoutedEventArgs e)
         {
@@ -168,6 +188,7 @@ namespace FrostyEditor.Windows
         {
             public string DisplayName { get; }
             public string TypeLabel => Resources.Count == 0 ? "" : "[" + Resources[0].Type.ToString().ToUpperInvariant() + "]";
+            public Brush MatchBrush { get; private set; } = Brushes.Black;
             public ObservableCollection<TreeNode> Children { get; } = new ObservableCollection<TreeNode>();
             internal List<BaseModResource> Resources { get; } = new List<BaseModResource>();
             private bool keep;
@@ -175,6 +196,8 @@ namespace FrostyEditor.Windows
             public TreeNode(string name) { DisplayName = name; }
             public void SetKeep(bool value, bool preserveRequired = false) { keep = value || (preserveRequired && Resources.Any(IsRequired)); OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); }
             public void SetChunks(bool value) { if (Resources.Any(resource => resource.Type == ModResourceType.Chunk)) { keep = value; OnPropertyChanged("Keep"); } foreach (TreeNode child in Children) child.SetChunks(value); }
+            public void SetMatch(bool found) { MatchBrush = found ? Brushes.ForestGreen : Brushes.Firebrick; OnPropertyChanged("MatchBrush"); }
+            public TreeNode Find(BaseModResource resource) { if (Resources.Contains(resource)) return this; foreach (TreeNode child in Children) { TreeNode found = child.Find(resource); if (found != null) return found; } return null; }
             public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => Keep || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
             public event PropertyChangedEventHandler PropertyChanged;
             private void OnPropertyChanged(string name) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name)); }
