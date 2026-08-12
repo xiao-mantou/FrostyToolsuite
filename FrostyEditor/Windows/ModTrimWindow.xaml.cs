@@ -56,6 +56,11 @@ namespace FrostyEditor.Windows
                 .Where(resource => resource.Type == ModResourceType.Chunk && Guid.TryParse(resource.Name, out _))
                 .ToDictionary(resource => Guid.Parse(resource.Name), FindNode);
             int matched = 0;
+            int dataRead = 0;
+            int dataMissing = 0;
+            int decompressed = 0;
+            Dictionary<string, int> noMatchByType = new Dictionary<string, int>();
+            Dictionary<string, List<string>> noMatchExamples = new Dictionary<string, List<string>>();
             scanProgress.Visibility = Visibility.Visible; cancelScanButton.Visibility = Visibility.Visible;
             scanProgress.Value = 0; statusText.Text = "Scanning dependencies...";
             int done = 0;
@@ -64,10 +69,30 @@ namespace FrostyEditor.Windows
                 token.ThrowIfCancellationRequested();
                 if (resource.Type == ModResourceType.Ebx || resource.Type == ModResourceType.Res)
                 {
-                    byte[] data = ExpandModData(source.GetResourceData(resource));
+                    byte[] rawData = source.GetResourceData(resource);
+                    if (rawData == null || rawData.Length == 0)
+                    {
+                        dataMissing++;
+                        AddScanIssue(noMatchByType, noMatchExamples, "no data", resource.Name);
+                        done++;
+                        scanProgress.Value = done * 100.0 / resources.Length;
+                        statusText.Text = "Scanning dependencies " + done + "/" + resources.Length;
+                        continue;
+                    }
+                    dataRead++;
+                    bool expanded;
+                    byte[] data = ExpandModData(rawData, out expanded);
+                    if (expanded) decompressed++;
                     HashSet<Guid> found = await Task.Run(() => FindChunkGuids(data, modChunks.Keys), token);
+                    bool usedGameData = false;
                     if (found.Count == 0 && !fastMode && App.AssetManager != null)
-                        found = await Task.Run(() => FindGameChunkGuids(resource, modChunks.Keys), token);
+                    {
+                        HashSet<Guid> gameFound = await Task.Run(() => FindGameChunkGuids(resource, modChunks.Keys), token);
+                        usedGameData = true;
+                        found = gameFound;
+                    }
+                    if (found.Count == 0)
+                        AddScanIssue(noMatchByType, noMatchExamples, usedGameData ? "game data has no matching mod CHK" : "mod data has no matching mod CHK", resource.Name);
                     foreach (Guid id in found)
                     {
                         modChunks[id].SetMatch(true);
@@ -81,6 +106,25 @@ namespace FrostyEditor.Windows
             }
             scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
             statusText.Text = "Dependency scan complete. Bound CHK: " + matched;
+            string summary = "Dependency scan complete\n"
+                + "EBX/RES: " + (dataRead + dataMissing) + "\n"
+                + "Data read: " + dataRead + "\n"
+                + "Decompressed: " + decompressed + "\n"
+                + "Bound CHK: " + matched;
+            foreach (KeyValuePair<string, int> issue in noMatchByType)
+            {
+                summary += "\n\n" + issue.Key + ": " + issue.Value;
+                List<string> examples = noMatchExamples[issue.Key];
+                if (examples.Count != 0) summary += "\nExamples: " + string.Join(", ", examples);
+            }
+            FrostyMessageBox.Show(summary, "Dependency scan report");
+        }
+
+        private static void AddScanIssue(Dictionary<string, int> counts, Dictionary<string, List<string>> examples, string reason, string name)
+        {
+            counts[reason] = counts.ContainsKey(reason) ? counts[reason] + 1 : 1;
+            if (!examples.ContainsKey(reason)) examples[reason] = new List<string>();
+            if (examples[reason].Count < 5 && !string.IsNullOrEmpty(name)) examples[reason].Add(name);
         }
 
         private HashSet<Guid> FindGameChunkGuids(BaseModResource resource, IEnumerable<Guid> chunkIds)
@@ -124,19 +168,27 @@ namespace FrostyEditor.Windows
             return result;
         }
 
-        private static byte[] ExpandModData(byte[] data)
+        private static byte[] ExpandModData(byte[] data, out bool expanded)
         {
+            expanded = false;
             if (data == null || data.Length < 8)
                 return data;
             try
             {
                 using (CasReader reader = new CasReader(new MemoryStream(data)))
-                    return reader.Read();
+                {
+                    byte[] result = reader.Read();
+                    if (result != null && result.Length != 0)
+                    {
+                        expanded = true;
+                        return result;
+                    }
+                }
             }
             catch
             {
-                return data;
             }
+            return data;
         }
         private void CancelScanButton_Click(object sender, RoutedEventArgs e)
         {
