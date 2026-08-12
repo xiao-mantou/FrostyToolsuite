@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using FrostySdk;
 using FrostySdk.IO;
@@ -109,6 +110,19 @@ namespace FrostyEditor.Windows
             }
             scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
             int unmatched = chunkTotal - modChunks.Values.Count(node => node.IsMatched);
+            Dictionary<Guid, int> chunkReferenceCounts = new Dictionary<Guid, int>();
+            foreach (HashSet<Guid> bindings in resourceChunkBindings.Values)
+                foreach (Guid id in bindings)
+                    chunkReferenceCounts[id] = chunkReferenceCounts.ContainsKey(id) ? chunkReferenceCounts[id] + 1 : 1;
+            int bindingEdges = chunkReferenceCounts.Values.Sum();
+            int boundResources = resourceChunkBindings.Count(pair => pair.Value.Count != 0);
+            int sharedChunks = chunkReferenceCounts.Count(pair => pair.Value > 1);
+            int maxReferences = chunkReferenceCounts.Count == 0 ? 0 : chunkReferenceCounts.Values.Max();
+            string sharedExamples = string.Join(", ", chunkReferenceCounts
+                .Where(pair => pair.Value > 1)
+                .OrderByDescending(pair => pair.Value)
+                .Take(5)
+                .Select(pair => pair.Key + "(" + pair.Value + ")"));
             string unmatchedChunks = string.Join(", ", resources
                 .Where(resource => resource.Type == ModResourceType.Chunk
                     && Guid.TryParse(resource.Name, out Guid id)
@@ -121,7 +135,13 @@ namespace FrostyEditor.Windows
                 + "Decompressed: " + decompressed + "\n"
                 + "CHK total: " + chunkTotal + "\n"
                 + "Bound CHK: " + matched + "\n"
-                + "Unmatched CHK: " + unmatched;
+                + "Unmatched CHK: " + unmatched + "\n"
+                + "Binding edges: " + bindingEdges + "\n"
+                + "Bound EBX/RES: " + boundResources + "\n"
+                + "Shared CHK (many-to-one): " + sharedChunks + "\n"
+                + "Max resources per CHK: " + maxReferences;
+            if (sharedExamples.Length != 0)
+                summary += "\nShared CHK examples: " + sharedExamples;
             if (unmatched != 0)
                 summary += "\nUnmatched CHK GUID: " + unmatchedChunks;
             foreach (KeyValuePair<string, int> issue in noMatchByType)
