@@ -64,9 +64,9 @@ namespace FrostyEditor.Windows
                 if (resource.Type == ModResourceType.Ebx || resource.Type == ModResourceType.Res)
                 {
                     byte[] data = source.GetResourceData(resource);
-                    HashSet<Guid> found = FindChunkGuids(data, modChunks.Keys);
+                    HashSet<Guid> found = await Task.Run(() => FindChunkGuids(data, modChunks.Keys), token);
                     if (found.Count == 0 && !fastMode && App.AssetManager != null)
-                        found = FindGameChunkGuids(resource, modChunks.Keys);
+                        found = await Task.Run(() => FindGameChunkGuids(resource, modChunks.Keys), token);
                     foreach (Guid id in found)
                     {
                         modChunks[id].SetMatch(true);
@@ -107,11 +107,19 @@ namespace FrostyEditor.Windows
         {
             HashSet<Guid> result = new HashSet<Guid>();
             if (data == null) return result;
-            byte[][] byteForms = chunkIds.SelectMany(id => new[] { id.ToByteArray(), id.ToByteArray().Reverse().ToArray() }).ToArray();
-            Guid[] ids = chunkIds.ToArray();
+            Dictionary<string, Guid> lookup = new Dictionary<string, Guid>(StringComparer.Ordinal);
+            foreach (Guid id in chunkIds)
+            {
+                byte[] bytes = id.ToByteArray();
+                lookup[Convert.ToBase64String(bytes)] = id;
+                lookup[Convert.ToBase64String(bytes.Reverse().ToArray())] = id;
+            }
             for (int i = 0; i <= data.Length - 16; i++)
-                for (int j = 0; j < byteForms.Length; j++)
-                    if (data.Skip(i).Take(16).SequenceEqual(byteForms[j])) { result.Add(ids[j / 2]); break; }
+            {
+                byte[] candidate = new byte[16];
+                Buffer.BlockCopy(data, i, candidate, 0, 16);
+                if (lookup.TryGetValue(Convert.ToBase64String(candidate), out Guid id)) result.Add(id);
+            }
             return result;
         }
         private void CancelScanButton_Click(object sender, RoutedEventArgs e)
