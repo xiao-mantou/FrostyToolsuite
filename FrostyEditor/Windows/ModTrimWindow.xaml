@@ -4,7 +4,7 @@
     <TreeView x:Name="resourceTree" Grid.Row="1" ItemTemplate="{DynamicResource TreeTemplate}" VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling">
       <TreeView.Resources>
         <HierarchicalDataTemplate x:Key="TreeTemplate" ItemsSource="{Binding Children}">
-          <StackPanel Orientation="Horizontal"><CheckBox IsThreeState="True" IsChecked="{Binding Keep, Mode=TwoWay}" Checked="ResourceCheckBox_Changed" Unchecked="ResourceCheckBox_Changed" Indeterminate="ResourceCheckBox_Changed"/><TextBlock Text="{Binding TypeLabel}" Foreground="DarkGray" Margin="5,0,0,0"/><TextBlock Text="{Binding DisplayName}" Foreground="{Binding MatchBrush}" Margin="8,0,0,0"/></StackPanel>
+          <StackPanel Orientation="Horizontal"><CheckBox IsThreeState="True" IsChecked="{Binding Keep, Mode=TwoWay}" Checked="ResourceCheckBox_Changed" Unchecked="ResourceCheckBox_Changed" Indeterminate="ResourceCheckBox_Changed"/><TextBlock Text="{Binding TypeLabel}" Foreground="DarkGray" Margin="5,0,0,0"/><TextBlock Text="{Binding DisplayName}" Foreground="White" Margin="8,0,0,0"/></StackPanel>
         </HierarchicalDataTemplate>
       </TreeView.Resources>
     </TreeView>

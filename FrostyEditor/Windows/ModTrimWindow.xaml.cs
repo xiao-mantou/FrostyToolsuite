@@ -295,7 +295,7 @@ namespace FrostyEditor.Windows
                 children = current.Children;
             }
             current.Resources.Add(resource);
-            current.SetKeep(resource.Type == ModResourceType.Chunk || IsRequired(resource));
+            current.SetKeep(IsRequired(resource));
         }
 
         private static bool IsRequired(BaseModResource resource)
@@ -306,9 +306,14 @@ namespace FrostyEditor.Windows
         {
             CheckBox checkBox = sender as CheckBox;
             TreeNode node = checkBox?.DataContext as TreeNode;
-            if (node == null || source == null || checkBox.IsChecked == null) return;
-            if (checkBox.IsChecked != null)
-                node.SetKeep(checkBox.IsChecked == true);
+            if (node == null || source == null) return;
+            bool keep = checkBox.IsChecked == true;
+            if (checkBox.IsChecked == null)
+            {
+                keep = false;
+                checkBox.IsChecked = false;
+            }
+            node.SetKeep(keep);
 
             foreach (BaseModResource resource in node.GetResources())
             {
@@ -383,7 +388,24 @@ namespace FrostyEditor.Windows
         public sealed class TreeNode : INotifyPropertyChanged
         {
             public string DisplayName { get; }
-            public string TypeLabel => Resources.Count == 0 ? "" : "[" + Resources[0].Type.ToString().ToUpperInvariant() + "]";
+            public string TypeLabel
+            {
+                get
+                {
+                    if (Resources.Count == 0)
+                        return "";
+
+                    BaseModResource resource = Resources[0];
+                    string type = resource.Type.ToString();
+                    if (!string.IsNullOrEmpty(resource.UserData))
+                    {
+                        string[] parts = resource.UserData.Split(';');
+                        if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0]))
+                            type = parts[0];
+                    }
+                    return "[" + type.ToUpperInvariant() + "]";
+                }
+            }
             public Brush MatchBrush { get; private set; } = Brushes.Black;
             public bool IsMatched { get; private set; }
             public ObservableCollection<TreeNode> Children { get; } = new ObservableCollection<TreeNode>();
