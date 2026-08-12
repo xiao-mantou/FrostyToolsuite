@@ -63,7 +63,7 @@ namespace FrostyEditor.Windows
                 token.ThrowIfCancellationRequested();
                 if (resource.Type == ModResourceType.Ebx || resource.Type == ModResourceType.Res)
                 {
-                    byte[] data = source.GetResourceData(resource);
+                    byte[] data = ExpandModData(source.GetResourceData(resource));
                     HashSet<Guid> found = await Task.Run(() => FindChunkGuids(data, modChunks.Keys), token);
                     if (found.Count == 0 && !fastMode && App.AssetManager != null)
                         found = await Task.Run(() => FindGameChunkGuids(resource, modChunks.Keys), token);
@@ -121,6 +121,21 @@ namespace FrostyEditor.Windows
                 if (lookup.TryGetValue(Convert.ToBase64String(candidate), out Guid id)) result.Add(id);
             }
             return result;
+        }
+
+        private static byte[] ExpandModData(byte[] data)
+        {
+            if (data == null || data.Length < 8)
+                return data;
+            try
+            {
+                using (CasReader reader = new CasReader(new MemoryStream(data)))
+                    return reader.Read();
+            }
+            catch
+            {
+                return data;
+            }
         }
         private void CancelScanButton_Click(object sender, RoutedEventArgs e)
         {
