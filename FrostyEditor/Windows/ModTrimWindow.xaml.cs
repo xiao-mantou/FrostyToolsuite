@@ -88,6 +88,9 @@ namespace FrostyEditor.Windows
                     if (expanded) decompressed++;
                     HashSet<Guid> found = await Task.Run(() => FindChunkGuids(data, modChunks.Keys), token);
                     bool usedGameData = false;
+                    // Only non-fast mode may use the original game resource as a
+                    // fallback, and only when the Mod data produced no usable
+                    // Chunk reference. Fast mode is strictly Mod-only.
                     if (found.Count == 0 && !fastMode && App.AssetManager != null)
                     {
                         HashSet<Guid> gameFound = await Task.Run(() => FindGameChunkGuids(resource, modChunks.Keys), token);
@@ -264,7 +267,7 @@ namespace FrostyEditor.Windows
                 children = current.Children;
             }
             current.Resources.Add(resource);
-            current.Keep = IsRequired(resource) || resource.Type == ModResourceType.Chunk;
+            current.Keep = true;
         }
 
         private static bool IsRequired(BaseModResource resource)
