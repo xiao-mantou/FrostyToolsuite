@@ -23,6 +23,7 @@ namespace FrostyEditor.Windows
         private FrostyMod source;
         private readonly ObservableCollection<TreeNode> roots = new ObservableCollection<TreeNode>();
         private readonly List<BaseModResource> selected = new List<BaseModResource>();
+        private readonly Dictionary<BaseModResource, HashSet<Guid>> resourceChunkBindings = new Dictionary<BaseModResource, HashSet<Guid>>();
         private readonly bool fastMode;
         private CancellationTokenSource scanCancellation;
         public ModTrimWindow() { InitializeComponent(); resourceTree.ItemsSource = roots; }
@@ -40,7 +41,7 @@ namespace FrostyEditor.Windows
             CancellationToken token = scanCancellation.Token;
             FrostyMod candidate = new FrostyMod(filename, true);
             if (!candidate.NewFormat) { FrostyMessageBox.Show("Only standard Frosty binary Mods are supported.", "Trim Mod"); return; }
-            source = candidate; roots.Clear(); selected.Clear();
+            source = candidate; roots.Clear(); selected.Clear(); resourceChunkBindings.Clear();
             foreach (BaseModResource resource in source.Resources) AddResource(resource);
             sourceText.Text = source.Filename; statusText.Text = source.Resources.Count() + " resources loaded";
             if (!fastMode)
@@ -99,6 +100,7 @@ namespace FrostyEditor.Windows
                         modChunks[id].SetMatch(true);
                         matched++;
                     }
+                    resourceChunkBindings[resource] = found;
                 }
                 done++;
                 scanProgress.Value = done * 100.0 / resources.Length;
@@ -248,6 +250,24 @@ namespace FrostyEditor.Windows
         private static bool IsRequired(BaseModResource resource)
         {
             return resource.Type == ModResourceType.Embedded || resource.Type == ModResourceType.Bundle;
+        }
+        private void ResourceCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            CheckBox checkBox = sender as CheckBox;
+            TreeNode node = checkBox?.DataContext as TreeNode;
+            if (node == null || checkBox.IsChecked != false) return;
+
+            foreach (BaseModResource resource in node.Resources)
+            {
+                if (!resourceChunkBindings.TryGetValue(resource, out HashSet<Guid> chunkIds))
+                    continue;
+                foreach (Guid chunkId in chunkIds)
+                {
+                    TreeNode chunkNode = FindNode(source.Resources.FirstOrDefault(candidate =>
+                        candidate.Type == ModResourceType.Chunk && Guid.TryParse(candidate.Name, out Guid id) && id == chunkId));
+                    chunkNode?.SetKeep(false);
+                }
+            }
         }
 
         private TreeNode FindNode(BaseModResource resource)
