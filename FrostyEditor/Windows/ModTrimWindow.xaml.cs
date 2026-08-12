@@ -56,6 +56,7 @@ namespace FrostyEditor.Windows
                 .Where(resource => resource.Type == ModResourceType.Chunk && Guid.TryParse(resource.Name, out _))
                 .ToDictionary(resource => Guid.Parse(resource.Name), FindNode);
             int matched = 0;
+            int chunkTotal = modChunks.Count;
             int dataRead = 0;
             int dataMissing = 0;
             int decompressed = 0;
@@ -105,19 +106,23 @@ namespace FrostyEditor.Windows
                 await Task.Delay(1);
             }
             scanProgress.Visibility = Visibility.Collapsed; cancelScanButton.Visibility = Visibility.Collapsed;
+            int unmatched = chunkTotal - modChunks.Values.Count(node => node.IsMatched);
             statusText.Text = "Dependency scan complete. Bound CHK: " + matched;
             string summary = "Dependency scan complete\n"
                 + "EBX/RES: " + (dataRead + dataMissing) + "\n"
                 + "Data read: " + dataRead + "\n"
                 + "Decompressed: " + decompressed + "\n"
-                + "Bound CHK: " + matched;
+                + "CHK total: " + chunkTotal + "\n"
+                + "Bound CHK: " + matched + "\n"
+                + "Unmatched CHK: " + unmatched;
             foreach (KeyValuePair<string, int> issue in noMatchByType)
             {
                 summary += "\n\n" + issue.Key + ": " + issue.Value;
                 List<string> examples = noMatchExamples[issue.Key];
                 if (examples.Count != 0) summary += "\nExamples: " + string.Join(", ", examples);
             }
-            FrostyMessageBox.Show(summary, "Dependency scan report");
+            reportText.Text = summary;
+            reportText.Visibility = Visibility.Visible;
         }
 
         private static void AddScanIssue(Dictionary<string, int> counts, Dictionary<string, List<string>> examples, string reason, string name)
@@ -299,6 +304,7 @@ namespace FrostyEditor.Windows
             public string DisplayName { get; }
             public string TypeLabel => Resources.Count == 0 ? "" : "[" + Resources[0].Type.ToString().ToUpperInvariant() + "]";
             public Brush MatchBrush { get; private set; } = Brushes.Black;
+            public bool IsMatched { get; private set; }
             public ObservableCollection<TreeNode> Children { get; } = new ObservableCollection<TreeNode>();
             internal List<BaseModResource> Resources { get; } = new List<BaseModResource>();
             private bool keep;
@@ -306,7 +312,7 @@ namespace FrostyEditor.Windows
             public TreeNode(string name) { DisplayName = name; }
             public void SetKeep(bool value, bool preserveRequired = false) { keep = value || (preserveRequired && Resources.Any(IsRequired)); OnPropertyChanged("Keep"); foreach (TreeNode child in Children) child.SetKeep(value, preserveRequired); }
             public void SetChunks(bool value) { if (Resources.Any(resource => resource.Type == ModResourceType.Chunk)) { keep = value; OnPropertyChanged("Keep"); } foreach (TreeNode child in Children) child.SetChunks(value); }
-            public void SetMatch(bool found) { MatchBrush = found ? Brushes.ForestGreen : Brushes.Firebrick; OnPropertyChanged("MatchBrush"); }
+            public void SetMatch(bool found) { IsMatched = found; MatchBrush = found ? Brushes.ForestGreen : Brushes.Firebrick; OnPropertyChanged("MatchBrush"); }
             public TreeNode Find(BaseModResource resource) { if (Resources.Contains(resource)) return this; foreach (TreeNode child in Children) { TreeNode found = child.Find(resource); if (found != null) return found; } return null; }
             public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => Keep || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
             public event PropertyChangedEventHandler PropertyChanged;
