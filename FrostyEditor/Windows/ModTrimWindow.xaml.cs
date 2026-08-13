@@ -27,6 +27,7 @@ namespace FrostyEditor.Windows
         private readonly Dictionary<BaseModResource, HashSet<Guid>> resourceChunkBindings = new Dictionary<BaseModResource, HashSet<Guid>>();
         private readonly bool fastMode;
         private CancellationTokenSource scanCancellation;
+        private bool updatingSelection;
         public ModTrimWindow() { InitializeComponent(); resourceTree.ItemsSource = roots; }
         public ModTrimWindow(string filename) : this() { fastMode = true; _ = LoadModAsync(filename); }
         private void OpenButton_Click(object sender, RoutedEventArgs e)
@@ -304,29 +305,39 @@ namespace FrostyEditor.Windows
         }
         private void ResourceCheckBox_Changed(object sender, RoutedEventArgs e)
         {
+            if (updatingSelection)
+                return;
             CheckBox checkBox = sender as CheckBox;
             TreeNode node = checkBox?.DataContext as TreeNode;
             if (node == null || source == null) return;
-            bool keep = checkBox.IsChecked == true;
-            if (checkBox.IsChecked == null)
+            updatingSelection = true;
+            try
             {
-                keep = false;
-                checkBox.IsChecked = false;
-            }
-            node.SetKeep(keep);
-
-            foreach (BaseModResource resource in node.GetResources())
-            {
-                if (!resourceChunkBindings.TryGetValue(resource, out HashSet<Guid> chunkIds))
-                    continue;
-                foreach (Guid chunkId in chunkIds)
+                bool keep = checkBox.IsChecked == true;
+                if (checkBox.IsChecked == null)
                 {
-                    TreeNode chunkNode = FindNode(source.Resources.FirstOrDefault(candidate =>
-                        candidate.Type == ModResourceType.Chunk && Guid.TryParse(candidate.Name, out Guid id) && id == chunkId));
-                    chunkNode?.SetKeep(checkBox.IsChecked == true);
+                    keep = false;
+                    checkBox.IsChecked = false;
                 }
+                node.SetKeep(keep);
+
+                foreach (BaseModResource resource in node.GetResources())
+                {
+                    if (!resourceChunkBindings.TryGetValue(resource, out HashSet<Guid> chunkIds))
+                        continue;
+                    foreach (Guid chunkId in chunkIds)
+                    {
+                        TreeNode chunkNode = FindNode(source.Resources.FirstOrDefault(candidate =>
+                            candidate.Type == ModResourceType.Chunk && Guid.TryParse(candidate.Name, out Guid id) && id == chunkId));
+                        chunkNode?.SetKeep(keep);
+                    }
+                }
+                foreach (TreeNode root in roots) root.RecalculateState();
             }
-            foreach (TreeNode root in roots) root.RecalculateState();
+            finally
+            {
+                updatingSelection = false;
+            }
         }
 
         private TreeNode FindNode(BaseModResource resource)
@@ -388,7 +399,7 @@ namespace FrostyEditor.Windows
         public sealed class TreeNode : INotifyPropertyChanged
         {
             public string DisplayName { get; }
-            public string TypeLabel
+            public string TypeIcon
             {
                 get
                 {
@@ -396,17 +407,23 @@ namespace FrostyEditor.Windows
                         return "";
 
                     BaseModResource resource = Resources[0];
-                    string type = resource.Type.ToString();
+                    string type = resource.Type.ToString().ToUpperInvariant();
                     if (!string.IsNullOrEmpty(resource.UserData))
                     {
                         string[] parts = resource.UserData.Split(';');
                         if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0]))
-                            type = parts[0];
+                            type = parts[0].ToUpperInvariant();
                     }
-                    return "[" + type.ToUpperInvariant() + "]";
+                    switch (type)
+                    {
+                        case "RES": return "/FrostyEditor;component/Images/Res.png";
+                        case "CHUNK": return "/FrostyEditor;component/Images/Chunk.png";
+                        case "LEGACY": return "/FrostyEditor;component/Images/Legacy.png";
+                        default: return "/FrostyEditor;component/Images/Ebx.png";
+                    }
                 }
             }
-            public Brush MatchBrush { get; private set; } = Brushes.Black;
+            public Brush DisplayBrush => IsMatched ? Brushes.ForestGreen : Brushes.White;
             public bool IsMatched { get; private set; }
             public ObservableCollection<TreeNode> Children { get; } = new ObservableCollection<TreeNode>();
             internal List<BaseModResource> Resources { get; } = new List<BaseModResource>();
@@ -432,7 +449,7 @@ namespace FrostyEditor.Windows
                     foreach (BaseModResource resource in child.GetResources())
                         yield return resource;
             }
-            public void SetMatch(bool found) { IsMatched = found; MatchBrush = found ? Brushes.ForestGreen : Brushes.Firebrick; OnPropertyChanged("MatchBrush"); }
+            public void SetMatch(bool found) { IsMatched = found; OnPropertyChanged("DisplayBrush"); }
             public TreeNode Find(BaseModResource resource) { if (Resources.Contains(resource)) return this; foreach (TreeNode child in Children) { TreeNode found = child.Find(resource); if (found != null) return found; } return null; }
             public void Collect(List<BaseModResource> output) { output.AddRange(Resources.Where(resource => keep == true || IsRequired(resource))); foreach (TreeNode child in Children) child.Collect(output); }
             public event PropertyChangedEventHandler PropertyChanged;

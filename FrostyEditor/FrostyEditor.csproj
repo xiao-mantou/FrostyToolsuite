@@ -298,6 +298,10 @@
     <Resource Include="Images\Ice.png" />
     <Resource Include="Images\NormalMap.png" />
     <Resource Include="Images\Noise.png" />
+    <Resource Include="Images\Ebx.png" />
+    <Resource Include="Images\Res.png" />
+    <Resource Include="Images\Chunk.png" />
+    <Resource Include="Images\Legacy.png" />
     <Resource Include="ChangeLog.txt" />
     <Resource Include="Credits.txt" />
   </ItemGroup>
